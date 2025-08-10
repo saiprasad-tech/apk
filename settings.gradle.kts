@@ -11,7 +11,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        maven("https://jitpack.io")
+        maven("https://dl.google.com/android/maven2")
+        maven("https://maven.google.com")
     }
 }
 
