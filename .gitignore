@@ -13,3 +13,30 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Android Studio files
+*.iml
+.idea/
+.gradle/
+build/
+app/build/
+*.apk
+*.aab
+
+# Local configuration files
+local.properties
+secrets.properties
+google-services.json
+
+# Generated files
+.navigation/
+proguard/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
