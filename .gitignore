@@ -1,3 +1,6 @@
+# Pixhawk_GCS - Hybrid Android/Qt/C++ Project
+
+# Android Studio files
 *.iml
 .gradle
 /local.properties
@@ -14,17 +17,36 @@
 .cxx
 local.properties
 
-# Android Studio files
-*.iml
-.idea/
-.gradle/
-build/
-app/build/
+# Android build outputs
 *.apk
 *.aab
+build/
+app/build/
+
+# NDK and C++ build files
+obj/
+libs/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+
+# Qt-specific files
+*.pro.user
+*.pro.user.*
+.qmake.stash
+qrc_*.cpp
+moc_*.cpp
+ui_*.h
 
 # Local configuration files
-local.properties
 secrets.properties
 google-services.json
 
@@ -40,3 +62,10 @@ proguard/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Temporary and cache files
+/tmp/
+.tmp/
+*.swp
+*.swo
+*~
