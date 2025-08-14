@@ -16,21 +16,19 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        vectorDrawables {
-            useSupportLibrary = true
-        }
-        
-        // NDK configuration for C++ support
+        vectorDrawables { useSupportLibrary = true }
+
         ndk {
             abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
         }
-        
+
+        // Per-variant flags (CMakeLists.txt already sets C++17)
         externalNativeBuild {
             cmake {
-                cppFlags += "-std=c++17"
+                // Optional: add extra compiler flags here
+                // cppFlags += "-std=c++17"
                 arguments += listOf(
-                    "-DANDROID_STL=c++_shared",
-                    "-DENABLE_QT_SUPPORT=OFF"  // Disable Qt for Android-only build
+                    "-DENABLE_QT_SUPPORT=OFF" // Keep Qt off for Android-only build for now
                 )
             }
         }
@@ -40,75 +38,55 @@ android {
         debug {
             isMinifyEnabled = false
             isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
-    
-    // External native build configuration
+
+    // Point to existing root CMakeLists.txt and pin required CMake version 3.31.6
     externalNativeBuild {
         cmake {
             path = file("../CMakeLists.txt")
-            version = "3.25.0"
+            version = "3.31.6" // Was 3.25.0 causing older 3.22.1 binary to be used
         }
     }
-    
+
+    buildFeatures {
+        compose = true
+        buildConfig = true // enable BuildConfig (removes warnings if fields added later)
+    }
+
+    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-    buildFeatures {
-        compose = true
-    }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    kotlinOptions { jvmTarget = "17" }
+
     packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
+        resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" }
     }
 }
 
 dependencies {
-    // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    
-    // Material3
     implementation("androidx.compose.material3:material3")
-    
-    // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    
-    // Lifecycle
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation("androidx.activity:activity-compose:1.9.0")
-    
-    // Maps Compose
     implementation("com.google.maps.android:maps-compose:4.4.1")
     implementation("com.google.android.gms:play-services-maps:18.2.0")
-    
-    // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    
-    // Testing
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
