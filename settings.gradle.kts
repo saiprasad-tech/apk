@@ -16,5 +16,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "pixhawk-gcs-lite"
+rootProject.name = "Pixhawk_GCS"
 include(":app")

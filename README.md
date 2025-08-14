@@ -1,6 +1,14 @@
-# Pixhawk GCS Lite
+# Pixhawk GCS
 
-A simplified ground control station for Pixhawk-compatible autopilots, inspired by QGroundControl but with a modern Material 3 UI and streamlined feature set.
+A hybrid Android/Qt ground control station for Pixhawk-compatible autopilots, combining the flexibility of Qt6/C++/QML with the native Android experience. This project migrates and extends the BDA-Lab Qt framework into a modern Android application.
+
+## Architecture
+
+### Hybrid Design
+- **Android Layer**: Modern Material 3 UI with Jetpack Compose
+- **C++ Core**: High-performance MAVLink processing and vehicle communication
+- **Qt Integration**: Optional QML components for advanced cross-platform features
+- **JNI Bridge**: Seamless integration between Android and native C++ backend
 
 ## Features
 
@@ -80,18 +88,32 @@ The app will work without a Maps API key, but the map view will show a placehold
 
 ## Development
 
+### Build System
+- **Android**: Gradle build system with Android Studio support
+- **C++ Backend**: CMake build system for cross-platform native code  
+- **Qt Support**: Optional Qt6 integration for advanced features
+- **Hybrid Integration**: JNI bridge for Android/C++ communication
+
 ### Architecture
 - **MVVM** pattern with Jetpack Compose
-- **Repository** pattern for data management
+- **Repository** pattern for data management  
 - **Flow/StateFlow** for reactive UI updates
 - **Coroutines** for asynchronous operations
+- **C++ Core** for performance-critical MAVLink processing
 
 ### Key Dependencies
 - Jetpack Compose with Material 3
 - Navigation Compose
 - Google Maps Compose
-- MAVLink Java library (io.dronefleet:mavlink)
+- CMake 3.25+ for C++ builds
+- Qt6 (optional, for extended features)
+- Android NDK for native development
 - Kotlin Coroutines
+
+### Building
+1. **Android Only**: Use standard Android Studio build
+2. **With C++ Backend**: Requires Android NDK
+3. **With Qt Support**: Requires Qt6 installation
 
 ### Testing
 Run unit tests:
@@ -102,6 +124,13 @@ Run unit tests:
 Run instrumented tests:
 ```bash
 ./gradlew connectedAndroidTest
+```
+
+Build C++ components:
+```bash
+mkdir build && cd build
+cmake .. -DANDROID_ABI=arm64-v8a
+make
 ```
 
 ## License

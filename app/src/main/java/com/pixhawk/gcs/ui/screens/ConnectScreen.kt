@@ -1,4 +1,4 @@
-package com.pixhawk.gcslite.ui.screens
+package com.pixhawk.gcs.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -8,7 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.pixhawk.gcslite.network.MavlinkParser
+import com.pixhawk.gcs.network.MavlinkParser
 
 @Composable
 fun ConnectScreen(

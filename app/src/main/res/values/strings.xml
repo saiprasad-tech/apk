@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pixhawk GCS Lite</string>
+    <string name="app_name">Pixhawk GCS</string>
     <string name="connect_tab">Connect</string>
     <string name="fly_tab">Fly</string>
     <string name="missions_tab">Missions</string>

@@ -1,4 +1,4 @@
-package com.pixhawk.gcslite.network
+package com.pixhawk.gcs.network
 
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
