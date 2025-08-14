@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.pixhawk.gcslite"
+    namespace = "com.pixhawk.gcs"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.pixhawk.gcslite"
+        applicationId = "com.pixhawk.gcs"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -18,6 +18,21 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        
+        // NDK configuration for C++ support
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+        }
+        
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+                arguments += listOf(
+                    "-DANDROID_STL=c++_shared",
+                    "-DENABLE_QT_SUPPORT=OFF"  // Disable Qt for Android-only build
+                )
+            }
         }
     }
 
@@ -39,6 +54,15 @@ android {
             )
         }
     }
+    
+    // External native build configuration
+    externalNativeBuild {
+        cmake {
+            path = file("../CMakeLists.txt")
+            version = "3.25.0"
+        }
+    }
+    
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17

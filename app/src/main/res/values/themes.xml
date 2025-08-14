@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.PixhawkGCSLite" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.PixhawkGCS" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
-    <style name="Theme.PixhawkGCSLite" parent="Base.Theme.PixhawkGCSLite" />
+    <style name="Theme.PixhawkGCS" parent="Base.Theme.PixhawkGCS" />
 </resources>

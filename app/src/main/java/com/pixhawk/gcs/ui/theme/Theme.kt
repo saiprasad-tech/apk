@@ -1,4 +1,4 @@
-package com.pixhawk.gcslite.ui.theme
+package com.pixhawk.gcs.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.lightColorScheme
@@ -10,7 +10,7 @@ private val DarkColorScheme = darkColorScheme()
 private val LightColorScheme = lightColorScheme()
 
 @Composable
-fun PixhawkGCSLiteTheme(
+fun PixhawkGCSTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {

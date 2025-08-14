@@ -1,4 +1,4 @@
-package com.pixhawk.gcslite
+package com.pixhawk.gcs
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -16,9 +16,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.pixhawk.gcslite.network.MavlinkParser
-import com.pixhawk.gcslite.ui.screens.*
-import com.pixhawk.gcslite.ui.theme.PixhawkGCSLiteTheme
+import com.pixhawk.gcs.network.MavlinkParser
+import com.pixhawk.gcs.ui.screens.*
+import com.pixhawk.gcs.ui.theme.PixhawkGCSLiteTheme
 
 class MainActivity : ComponentActivity() {
     private lateinit var mavlinkParser: MavlinkParser

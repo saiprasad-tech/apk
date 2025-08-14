@@ -1,4 +1,4 @@
-package com.pixhawk.gcslite.ui.screens
+package com.pixhawk.gcs.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
