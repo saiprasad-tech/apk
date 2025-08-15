@@ -1,18 +1,23 @@
 package com.pixhawk.gcs.network
 
+import com.pixhawk.gcs.mavlink.MavlinkCrc
+import com.pixhawk.gcs.transport.*
+import com.pixhawk.gcs.logging.TelemetryLogger
+import android.content.Context
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import java.net.*
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Internal MAVLink v1 parser/encoder implementation
- * Replaces the external dronefleet MAVLink dependency to eliminate build issues
+ * Enhanced MAVLink v1 parser/encoder implementation with transport abstraction and CRC validation
  */
-class MavlinkParser(private val scope: CoroutineScope) {
+class MavlinkParser(
+    private val context: Context,
+    private val scope: CoroutineScope
+) {
     
     // Vehicle state data class
     data class VehicleState(
@@ -44,12 +49,12 @@ class MavlinkParser(private val scope: CoroutineScope) {
         private const val MAVLINK_CRC_LEN = 2
         private const val MAVLINK_MAX_PAYLOAD_LEN = 255
         
-        // Message IDs
+        // Message IDs - Updated to match CRC table
         private const val MAVLINK_MSG_ID_HEARTBEAT = 0
         private const val MAVLINK_MSG_ID_SYS_STATUS = 1
+        private const val MAVLINK_MSG_ID_GPS_RAW_INT = 24
         private const val MAVLINK_MSG_ID_ATTITUDE = 30
         private const val MAVLINK_MSG_ID_GLOBAL_POSITION_INT = 33
-        private const val MAVLINK_MSG_ID_GPS_RAW_INT = 24
         private const val MAVLINK_MSG_ID_VFR_HUD = 74
         private const val MAVLINK_MSG_ID_COMMAND_LONG = 76
         
@@ -62,46 +67,76 @@ class MavlinkParser(private val scope: CoroutineScope) {
     private val _vehicleState = MutableStateFlow(VehicleState())
     val vehicleState: StateFlow<VehicleState> = _vehicleState.asStateFlow()
     
-    private var socket: DatagramSocket? = null
-    private var remoteAddress: InetAddress? = null
-    private var remotePort: Int = 0
-    private var receiveJob: Job? = null
+    // Transport management
+    private val transportManager = TransportManager(context, scope)
+    private val telemetryLogger = TelemetryLogger(context, scope)
+    
+    // Sequence number for outgoing messages
     private var currentSequence: Int = 0
     
+    // Message parsing state
+    private var parseState = ParseState.WAITING_FOR_STX
+    private var messageBuffer = ByteArray(MAVLINK_MAX_PAYLOAD_LEN + MAVLINK_HEADER_LEN + MAVLINK_CRC_LEN)
+    private var bufferIndex = 0
+    private var expectedLength = 0
+
+    private enum class ParseState {
+        WAITING_FOR_STX,
+        READING_HEADER,
+        READING_PAYLOAD,
+        READING_CRC
+    }
+    
+    init {
+        // Set up transport data callback
+        transportManager.setDataCallback { data, length ->
+            parseDatagram(data, length)
+        }
+        
+        // Monitor connection state
+        scope.launch {
+            transportManager.connectionState.collect { state ->
+                _vehicleState.value = _vehicleState.value.copy(
+                    connected = state == TransportState.CONNECTED
+                )
+            }
+        }
+    }
+    
     /**
-     * Start UDP connection
+     * Get transport manager for UI access
+     */
+    fun getTransportManager(): TransportManager = transportManager
+    
+    /**
+     * Get telemetry logger for UI access
+     */
+    fun getTelemetryLogger(): TelemetryLogger = telemetryLogger
+    
+    /**
+     * Start connection using transport abstraction
+     * @param transportType Type of transport to use
+     * @param params Connection parameters
+     */
+    suspend fun startConnection(transportType: TransportType, params: ConnectionParams): Boolean {
+        return transportManager.connect(transportType, params)
+    }
+    
+    /**
+     * Legacy method for backward compatibility - uses UDP Listen
      * @param host Host address (use "0.0.0.0" for listen-only mode)
      * @param port Port to bind to (default 14550)
      */
     fun startConnection(host: String, port: Int = 14550) {
         scope.launch {
-            try {
-                socket?.close()
-                
-                socket = if (host == "0.0.0.0") {
-                    // Listen-only mode - bind to all interfaces
-                    DatagramSocket(port)
-                } else {
-                    // Connect to specific host
-                    val addr = InetAddress.getByName(host)
-                    remoteAddress = addr
-                    remotePort = port
-                    DatagramSocket().apply {
-                        connect(addr, port)
-                    }
-                }
-                
-                _vehicleState.value = _vehicleState.value.copy(connected = true)
-                
-                // Start receiving messages
-                receiveJob = scope.launch {
-                    receiveMessages()
-                }
-                
-            } catch (e: Exception) {
-                _vehicleState.value = _vehicleState.value.copy(connected = false)
-                e.printStackTrace()
+            val transportType = if (host == "0.0.0.0") {
+                TransportType.UDP_LISTEN
+            } else {
+                TransportType.UDP_CLIENT
             }
+            
+            val params = ConnectionParams.NetworkParams(host, port)
+            transportManager.connect(transportType, params)
         }
     }
     
@@ -109,49 +144,56 @@ class MavlinkParser(private val scope: CoroutineScope) {
      * Stop the connection
      */
     fun stopConnection() {
-        receiveJob?.cancel()
-        socket?.close()
-        socket = null
-        remoteAddress = null
-        _vehicleState.value = _vehicleState.value.copy(connected = false)
-    }
-    
-    /**
-     * Send command to vehicle
-     */
-    fun sendCommand(command: Int, param1: Float = 0f, param2: Float = 0f, 
-                   param3: Float = 0f, param4: Float = 0f, param5: Float = 0f, 
-                   param6: Float = 0f, param7: Float = 0f) {
         scope.launch {
-            val packet = createCommandLongPacket(command, param1, param2, param3, param4, param5, param6, param7)
-            sendPacket(packet)
+            transportManager.disconnect()
         }
     }
     
     /**
-     * Arm/Disarm the vehicle
+     * Send command to vehicle with proper CRC calculation
+     */
+    fun sendCommand(command: Int, param1: Float = 0f, param2: Float = 0f, 
+                   param3: Float = 0f, param4: Float = 0f, param5: Float = 0f,
+                   param6: Float = 0f, param7: Float = 0f) {
+        scope.launch {
+            val packet = buildCommandLongPacket(command, param1, param2, param3, 
+                                              param4, param5, param6, param7)
+            transportManager.sendData(packet)
+            
+            // Log outgoing command
+            telemetryLogger.logMessage("CMD: $command params: $param1 $param2 $param3 $param4 $param5 $param6 $param7")
+        }
+    }
+    
+    /**
+     * Convenient methods for common commands
      */
     fun armDisarm(arm: Boolean) {
         sendCommand(MAV_CMD_COMPONENT_ARM_DISARM, if (arm) 1f else 0f)
     }
     
-    /**
-     * Return to Launch
-     */
+    fun takeoff(altitude: Float = 10f) {
+        sendCommand(MAV_CMD_NAV_TAKEOFF, 0f, 0f, 0f, 0f, 0f, 0f, altitude)
+    }
+    
     fun returnToLaunch() {
         sendCommand(MAV_CMD_NAV_RETURN_TO_LAUNCH)
     }
     
     /**
-     * Takeoff command
+     * Parse incoming datagram data with CRC validation
      */
-    fun takeoff(altitude: Float = 10f) {
-        sendCommand(MAV_CMD_NAV_TAKEOFF, 0f, 0f, 0f, 0f, 0f, 0f, altitude)
+    fun parseDatagram(data: ByteArray, length: Int) {
+        // Log received data
+        if (telemetryLogger.isLogging.value) {
+            telemetryLogger.logFrame(data, length)
+        }
+        
+        // Process the data byte by byte looking for MAVLink frames
+        for (i in 0 until length) {
+            processByte(data[i])
+        }
     }
-    
-    /**
-     * Parse incoming UDP datagram data
-     */
     fun parseDatagram(data: ByteArray, length: Int) {
         // Process the data byte by byte looking for MAVLink frames
         for (i in 0 until length) {
@@ -172,31 +214,6 @@ class MavlinkParser(private val scope: CoroutineScope) {
         READING_CRC
     }
     
-    private suspend fun receiveMessages() {
-        val buffer = ByteArray(1024)
-        
-        while (!Thread.currentThread().isInterrupted && socket?.isClosed == false) {
-            try {
-                val packet = DatagramPacket(buffer, buffer.size)
-                socket?.receive(packet)
-                
-                // If in listen mode and we haven't learned the sender yet, learn it
-                if (remoteAddress == null) {
-                    remoteAddress = packet.address
-                    remotePort = packet.port
-                }
-                
-                // Parse the received data
-                parseDatagram(buffer, packet.length)
-                
-            } catch (e: Exception) {
-                if (socket?.isClosed != true) {
-                    e.printStackTrace()
-                }
-                break
-            }
-        }
-    }
     
     private fun processByte(byte: Byte) {
         when (parseState) {
@@ -245,6 +262,13 @@ class MavlinkParser(private val scope: CoroutineScope) {
         val systemId = buffer[3].toInt() and 0xFF
         val componentId = buffer[4].toInt() and 0xFF
         val messageId = buffer[5].toInt() and 0xFF
+        
+        // Validate CRC before processing message
+        if (!MavlinkCrc.validateCrc(buffer, length, messageId)) {
+            // CRC validation failed - discard message
+            telemetryLogger.logMessage("CRC validation failed for message ID $messageId")
+            return
+        }
         
         // Extract payload
         val payload = ByteArray(payloadLength)
@@ -377,7 +401,7 @@ class MavlinkParser(private val scope: CoroutineScope) {
         }
     }
     
-    private fun createCommandLongPacket(command: Int, param1: Float, param2: Float, 
+    private fun buildCommandLongPacket(command: Int, param1: Float, param2: Float, 
                                       param3: Float, param4: Float, param5: Float, 
                                       param6: Float, param7: Float): ByteArray {
         val payload = ByteArray(33)
@@ -410,21 +434,13 @@ class MavlinkParser(private val scope: CoroutineScope) {
         buffer.put(messageId.toByte())
         buffer.put(payload)
         
-        // Simple CRC (placeholder - real implementation would calculate proper CRC)
-        buffer.put(0.toByte())
-        buffer.put(0.toByte())
+        // Calculate proper CRC using the CRC utility
+        val crc = MavlinkCrc.calculateCrc(packet, packet.size - MAVLINK_CRC_LEN, messageId)
+        val crcBytes = MavlinkCrc.getCrcBytes(crc)
+        buffer.put(crcBytes[0])
+        buffer.put(crcBytes[1])
         
         return packet
     }
-    
-    private fun sendPacket(data: ByteArray) {
-        try {
-            if (remoteAddress != null && socket != null) {
-                val packet = DatagramPacket(data, data.size, remoteAddress, remotePort)
-                socket?.send(packet)
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
+
 }
