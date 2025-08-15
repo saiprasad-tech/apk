@@ -1,71 +1,9 @@
-# Pixhawk_GCS - Hybrid Android/Qt/C++ Project
-
-# Android Studio files
-*.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-
-# Android build outputs
-*.apk
-*.aab
+.gradle/
 build/
-app/build/
-
-# NDK and C++ build files
-obj/
-libs/
+local.properties
+.idea/
+*.iml
+.externalNativeBuild/
+.cxx/
 cmake-build-*/
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-Makefile
-*.cmake
-*.o
-*.a
-*.so
-*.dylib
-*.dll
-
-# Qt-specific files
-*.pro.user
-*.pro.user.*
-.qmake.stash
-qrc_*.cpp
-moc_*.cpp
-ui_*.h
-
-# Local configuration files
-secrets.properties
-google-services.json
-
-# Generated files
-.navigation/
-proguard/
-
-# OS generated files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Temporary and cache files
-/tmp/
-.tmp/
-*.swp
-*.swo
-*~
