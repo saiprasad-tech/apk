@@ -1,17 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pixhawk GCS</string>
-    <string name="connect_tab">Connect</string>
-    <string name="fly_tab">Fly</string>
-    <string name="missions_tab">Missions</string>
-    <string name="params_tab">Params</string>
-    <string name="logs_tab">Logs</string>
-    <string name="host_label">Host</string>
-    <string name="port_label">Port</string>
-    <string name="connect_button">Connect</string>
-    <string name="disconnect_button">Disconnect</string>
-    <string name="arm_button">Arm</string>
-    <string name="disarm_button">Disarm</string>
-    <string name="rtl_button">RTL</string>
-    <string name="takeoff_button">Takeoff</string>
+    <string name="app_name">PixhawkGCS</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
 </resources>
