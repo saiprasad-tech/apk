@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.pixhawk.gcs.network.MavlinkParser
+import com.pixhawk.gcs.permissions.rememberPermissionsManager
 import com.pixhawk.gcs.ui.screens.*
 import com.pixhawk.gcs.ui.theme.PixhawkGCSLiteTheme
 
@@ -27,11 +28,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         
         // Initialize MAVLink parser
-        mavlinkParser = MavlinkParser(lifecycleScope)
+        mavlinkParser = MavlinkParser(this, lifecycleScope)
         
         setContent {
             PixhawkGCSLiteTheme {
-                MainApp(mavlinkParser = mavlinkParser)
+                MainApp(mavlinkParser = mavlinkParser, activity = this)
             }
         }
     }
@@ -44,8 +45,11 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainApp(mavlinkParser: MavlinkParser) {
+fun MainApp(mavlinkParser: MavlinkParser, activity: ComponentActivity) {
     val navController = rememberNavController()
+    
+    // Initialize permissions manager
+    val permissionsManager = rememberPermissionsManager(activity)
     
     // Define navigation items
     val items = listOf(
@@ -90,10 +94,16 @@ fun MainApp(mavlinkParser: MavlinkParser) {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable("connect") { 
-                ConnectScreen(mavlinkParser = mavlinkParser)
+                ConnectScreen(
+                    mavlinkParser = mavlinkParser,
+                    permissionsManager = permissionsManager
+                )
             }
             composable("fly") { 
-                FlyScreen(mavlinkParser = mavlinkParser)
+                FlyScreen(
+                    mavlinkParser = mavlinkParser,
+                    permissionsManager = permissionsManager
+                )
             }
             composable("missions") { 
                 MissionsScreen()
