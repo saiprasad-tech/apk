@@ -2,6 +2,8 @@ package com.pixhawk.gcs.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -9,15 +11,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.pixhawk.gcs.network.MavlinkParser
+import com.pixhawk.gcs.permissions.PermissionsManager
+import com.pixhawk.gcs.transport.TransportState
+import kotlinx.coroutines.launch
 
 @Composable
 fun FlyScreen(
     mavlinkParser: MavlinkParser,
+    permissionsManager: PermissionsManager,
     modifier: Modifier = Modifier
 ) {
     var host by remember { mutableStateOf("0.0.0.0") }
     var port by remember { mutableStateOf("14550") }
     val vehicleState by mavlinkParser.vehicleState.collectAsState()
+    val transportManager = mavlinkParser.getTransportManager()
+    val telemetryLogger = mavlinkParser.getTelemetryLogger()
+    val connectionState by transportManager.connectionState.collectAsState()
+    val connectionInfo by transportManager.connectionInfo.collectAsState()
+    val isLogging by telemetryLogger.isLogging.collectAsState()
+    val currentLogFile by telemetryLogger.currentLogFile.collectAsState()
+    
+    val scope = rememberCoroutineScope()
     
     Column(
         modifier = modifier
@@ -30,7 +44,8 @@ fun FlyScreen(
             style = MaterialTheme.typography.headlineMedium
         )
         
-        // Connection Controls - Always visible in Fly mode as per requirements
+        
+        // Connection Status & Telemetry Logging Controls
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -39,59 +54,120 @@ fun FlyScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Connection",
+                    text = "Connection & Logging",
                     style = MaterialTheme.typography.titleSmall
                 )
                 
-                // Host/Port layout with proper sizing - same fix as Connect tab
+                // Connection Status
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Host field - expandable, not a tiny vertical rectangle
-                    OutlinedTextField(
-                        value = host,
-                        onValueChange = { host = it },
-                        label = { Text("Host") },
-                        modifier = Modifier.weight(2f), // Ensures Host gets proper width
-                        singleLine = true,
-                        enabled = !vehicleState.connected
-                    )
-                    
-                    // Port field - readable, not cramped
-                    OutlinedTextField(
-                        value = port,
-                        onValueChange = { port = it },
-                        label = { Text("Port") },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        enabled = !vehicleState.connected
-                    )
-                    
-                    // Connect button
-                    Button(
-                        onClick = {
-                            if (vehicleState.connected) {
-                                mavlinkParser.stopConnection()
-                            } else {
-                                val portInt = port.toIntOrNull() ?: 14550
-                                mavlinkParser.startConnection(host, portInt)
-                            }
-                        },
-                        modifier = Modifier.wrapContentWidth(),
-                        colors = if (vehicleState.connected) {
-                            ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                        } else {
-                            ButtonDefaults.buttonColors()
+                    Column {
+                        Text(
+                            text = when (connectionState) {
+                                TransportState.CONNECTED -> "Connected"
+                                TransportState.CONNECTING -> "Connecting..."
+                                TransportState.DISCONNECTED -> "Disconnected"
+                                TransportState.ERROR -> "Error"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (connectionState == TransportState.CONNECTED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (connectionInfo.isNotEmpty()) {
+                            Text(
+                                text = connectionInfo,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
+                    }
+                    
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(if (vehicleState.connected) "Disc." else "Conn.")
+                        // Telemetry Logging Toggle
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    if (isLogging) {
+                                        telemetryLogger.stopLogging()
+                                    } else {
+                                        telemetryLogger.startLogging()
+                                    }
+                                }
+                            },
+                            colors = if (isLogging) {
+                                ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                            } else {
+                                ButtonDefaults.buttonColors()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (isLogging) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                contentDescription = if (isLogging) "Stop Log" else "Start Log",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (isLogging) "Stop Log" else "Start Log")
+                        }
+                        
+                        // Quick Connect/Disconnect 
+                        Button(
+                            onClick = {
+                                if (connectionState == TransportState.CONNECTED) {
+                                    scope.launch {
+                                        transportManager.disconnect()
+                                    }
+                                } else {
+                                    val portInt = port.toIntOrNull() ?: 14550
+                                    mavlinkParser.startConnection(host, portInt)
+                                }
+                            },
+                            colors = if (connectionState == TransportState.CONNECTED) {
+                                ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                            } else {
+                                ButtonDefaults.buttonColors()
+                            },
+                            enabled = connectionState != TransportState.CONNECTING
+                        ) {
+                            Text(if (connectionState == TransportState.CONNECTED) "Disc." else "Conn.")
+                        }
                     }
                 }
-            }
-        }
+                
+                // Logging Status
+                if (isLogging) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FiberManualRecord,
+                                contentDescription = "Recording",
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Recording telemetry",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        currentLogFile?.let { fileName ->
+                            Text(
+                                text = fileName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
         
         // HUD/Status Display
         Card(
